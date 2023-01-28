@@ -42,7 +42,7 @@ def wait_url(url, verify, timeout): # TODO: Adicionar comentários
     return timeit.default_timer() - start_time
 
 
-def init_gateway(gateway, url): # TODO: Adicionar comentários
+def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: str = None): # TODO: Adicionar comentários
     started = False
     attempt = 0
     total_time = 0
@@ -54,6 +54,14 @@ def init_gateway(gateway, url): # TODO: Adicionar comentários
         attempt += 1
 
         try:
+            gateway.cmd(f"IP={gateway.ip}") # Configurando o IP do gateway.
+
+            if(ip_up != None):
+                gateway.cmd(f"IP_UP={ip_up}") # Configurando o IP do gateway pai, caso possua.
+            
+            if(has_nodes):
+                gateway.cmd(f"HAS_NODES=true") # Configurando se o gateway possui filhos ou não.
+
             gateway.cmd("./usr/local/bin/servicemix-init.sh &")
             gateway.cmd("./opt/servicemix/bin/servicemix &")
 
@@ -112,7 +120,6 @@ gateway_fog = Container(
     f'gat_fog',
     resources=Resources.XLARGE,
     dimage="larsid/top-k:1.0.0-fogbed",
-    environment={"IP": "172.17.0.2", "HAS_NODES": "true"}, # TODO: Rever esse IP
     port_bindings={1883: 1883, 8181: 8181, 1099: 1099,
                    8101: 8101, 61616: 61616, 44444: 44444}
 )
@@ -120,8 +127,6 @@ gateway_edge = Container(
     f'gat_edge',
     resources=Resources.XLARGE,
     dimage="larsid/top-k:1.0.0-fogbed",
-    environment={"IP_UP": "172.17.0.2", # TODO: Rever esses IP
-                 "IP": "172.17.0.3", "HAS_NODES": "false"}, # TODO: Rever esses IP
     port_bindings={1883: 1884, 8181: 8182, 1099: 1100,
                    8101: 8102, 61616: 61617, 44444: 44445}
 )
@@ -141,10 +146,8 @@ exp.add_link(fog, edge)
 try:
     exp.start()
 
-    init_gateway(gateway_fog, url)
-    print(gateway_fog.ip)
-    init_gateway(gateway_edge, url2)
-    print(gateway_edge.ip)
+    init_gateway(gateway=gateway_fog, url=url, has_nodes=True)
+    init_gateway(gateway=gateway_edge, url=url2, ip_up=gateway_fog.ip)
 
     init_device(device_1, gateway_fog.ip, url)
     init_device(device_2, gateway_edge.ip, url2)
