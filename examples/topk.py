@@ -2,6 +2,7 @@ import time
 import timeit
 import json
 from urllib.request import urlopen
+from typing import Optional
 
 from mininet.log import setLogLevel
 
@@ -12,10 +13,6 @@ from fogbed.resources.flavors import Resources
 from fogbed.resources.models import EdgeResourceModel, FogResourceModel
 
 setLogLevel('info')
-
-url = "http://localhost:8181/cxf/iot-service/devices/"
-url2 = "http://localhost:8182/cxf/iot-service/devices/" # TODO: Colocar dinamicamente a URL
-
 
 def __wait_url(url: str, is_device: bool, timeout: int):
     """ Wait until the webpage of all devices connected to the gateway are 
@@ -36,7 +33,7 @@ def __wait_url(url: str, is_device: bool, timeout: int):
 
     while (result == None):
         if (timeit.default_timer() - start_time > timeout):
-            raise Exception("url timeout")
+            raise Exception("URL timeout.")
 
         time.sleep(2)
 
@@ -46,7 +43,7 @@ def __wait_url(url: str, is_device: bool, timeout: int):
             if (is_device):
                 try:
                     resp = json.load(result)
-                    
+
                     if ("device" not in resp):
                         result = None
                 except:
@@ -57,26 +54,30 @@ def __wait_url(url: str, is_device: bool, timeout: int):
     return timeit.default_timer() - start_time
 
 
-def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: str = None) -> None:
+def init_gateway(gateway: Container, has_nodes: bool = False, ip_up: Optional[str] = None) -> str:
     """ Initializes the gateway.
 
     Parameters
     ----------
     gateway: :class:`Container`
         The gateway that will be initialized.
-    url: :class:`str`
-        The webpage to check all devices connected to the gateway.
     has_nodes: :class:`bool`
         Indicates whether the gateway will be a parent node(true) or a 
         children node(false).
     ip_up: :class:`str`
         Gateway IP address located in the layer above.
+    
+    Return
+    ------
+    url: :class:`str`
+        The webpage to check all devices connected to the gateway.
     """
 
     started: bool = False
     attempt: int = 0
     total_time: float = 0
     timeout: int = 80
+    url: str = f"http://localhost:{gateway.params['port_bindings'][8181]}/cxf/iot-service/devices/"
 
     print("# Starting Servicemix")
 
@@ -105,7 +106,9 @@ def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: s
             total_time += timeout
 
     if (not started):
-        raise Exception("URL timeout")
+        raise Exception("URL timeout.")
+
+    return url
 
 
 def init_device(device: Container, gateway_ip: str, url: str) -> None:
@@ -145,7 +148,7 @@ def init_device(device: Container, gateway_ip: str, url: str) -> None:
             total_time += timeout
 
     if (not started):
-        raise Exception("URL timeout")
+        raise Exception("URL timeout.")
 
 
 Services(max_cpu=6, max_mem=4096)
@@ -188,11 +191,14 @@ exp.add_link(fog, edge)
 try:
     exp.start()
 
-    init_gateway(gateway=gateway_fog, url=url, has_nodes=True)
-    init_gateway(gateway=gateway_edge, url=url2, ip_up=gateway_fog.ip)
+    gateway_fog_url: str = init_gateway(gateway=gateway_fog, has_nodes=True)
+    gateway_edge_url:str = init_gateway(gateway=gateway_edge, ip_up=gateway_fog.ip)
 
-    init_device(device_1, gateway_fog.ip, url)
-    init_device(device_2, gateway_edge.ip, url2)
+    print(gateway_fog_url)
+    print(gateway_edge_url)
+
+    init_device(device_1, gateway_fog.ip, gateway_fog_url)
+    init_device(device_2, gateway_edge.ip, gateway_edge_url)
 except Exception as e:
     print(e)
 
