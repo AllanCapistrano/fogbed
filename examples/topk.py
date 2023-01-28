@@ -17,7 +17,20 @@ url = "http://localhost:8181/cxf/iot-service/devices/"
 url2 = "http://localhost:8182/cxf/iot-service/devices/" # TODO: Colocar dinamicamente a URL
 
 
-def wait_url(url, verify, timeout): # TODO: Adicionar comentários
+def __wait_url(url: str, is_device: bool, timeout: int):
+    """ Wait until the webpage of all devices connected to the gateway are 
+    available. Which indicates that the gateway has been properly initialized.
+
+    Parameters
+    ----------
+    url: :class:`str`
+        The webpage to check all devices connected to the gateway.
+    is_device: :class:`bool`
+        If it is init_device function using this function.
+    timeout: :class:`int`
+        Maximum time in seconds to wait.
+    """
+
     result = None
     start_time = timeit.default_timer()
 
@@ -29,9 +42,11 @@ def wait_url(url, verify, timeout): # TODO: Adicionar comentários
 
         try:
             result = urlopen(url)
-            if (verify):
+
+            if (is_device):
                 try:
                     resp = json.load(result)
+                    
                     if ("device" not in resp):
                         result = None
                 except:
@@ -42,11 +57,26 @@ def wait_url(url, verify, timeout): # TODO: Adicionar comentários
     return timeit.default_timer() - start_time
 
 
-def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: str = None): # TODO: Adicionar comentários
-    started = False
-    attempt = 0
-    total_time = 0
-    timeout = 80
+def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: str = None) -> None:
+    """ Initializes the gateway.
+
+    Parameters
+    ----------
+    gateway: :class:`Container`
+        The gateway that will be initialized.
+    url: :class:`str`
+        The webpage to check all devices connected to the gateway.
+    has_nodes: :class:`bool`
+        Indicates whether the gateway will be a parent node(true) or a 
+        children node(false).
+    ip_up: :class:`str`
+        Gateway IP address located in the layer above.
+    """
+
+    started: bool = False
+    attempt: int = 0
+    total_time: float = 0
+    timeout: int = 80
 
     print("# Starting Servicemix")
 
@@ -65,7 +95,7 @@ def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: s
             gateway.cmd("./usr/local/bin/servicemix-init.sh &")
             gateway.cmd("./opt/servicemix/bin/servicemix &")
 
-            total_time += round(wait_url(url, False, timeout), 1)
+            total_time += round(__wait_url(url, False, timeout), 1)
 
             print(
                 f"## Servicemix started in {total_time}s in {attempt} attempt(s)")
@@ -75,14 +105,26 @@ def init_gateway(gateway: Container, url: str, has_nodes: bool = False, ip_up: s
             total_time += timeout
 
     if (not started):
-        raise Exception("url timeout")
+        raise Exception("URL timeout")
 
 
-def init_device(device: Container, gateway_ip: str, url): # TODO: Adicionar comentários
-    started = False
-    attempt = 0
-    total_time = 0
-    timeout = 15
+def init_device(device: Container, gateway_ip: str, url: str) -> None:
+    """ Initializes the virtual fot device.
+
+    Parameters
+    ----------
+    device: :class:`Container`
+        The device that will be initialized.
+    gateway_ip: :class:`str`
+        IP address of the gateway to which the device will connect.
+    url: :class:`str`
+        The webpage to check all devices connected to the gateway.
+    """
+
+    started: bool = False
+    attempt: int = 0
+    total_time: float = 0
+    timeout: int = 15
 
     print(f"# Starting {device.name}")
 
@@ -93,7 +135,7 @@ def init_device(device: Container, gateway_ip: str, url): # TODO: Adicionar come
             device.cmd(f"java -jar device.jar -di {device.name} -bi {gateway_ip} &")
 
             total_time += round(
-                wait_url(f"{url}{device.name}/temperatureSensor", True, timeout), 1)
+                __wait_url(f"{url}{device.name}/temperatureSensor", True, timeout), 1)
 
             print(
                 f"## Device {device.name} started in {total_time}s in {attempt} attempt(s)")
@@ -103,7 +145,7 @@ def init_device(device: Container, gateway_ip: str, url): # TODO: Adicionar come
             total_time += timeout
 
     if (not started):
-        raise Exception("url timeout")
+        raise Exception("URL timeout")
 
 
 Services(max_cpu=6, max_mem=4096)
