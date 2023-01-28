@@ -194,9 +194,6 @@ try:
     gateway_fog_url: str = init_gateway(gateway=gateway_fog, has_nodes=True)
     gateway_edge_url:str = init_gateway(gateway=gateway_edge, ip_up=gateway_fog.ip)
 
-    print(gateway_fog_url)
-    print(gateway_edge_url)
-
     init_device(device_1, gateway_fog.ip, gateway_fog_url)
     init_device(device_2, gateway_edge.ip, gateway_edge_url)
 except Exception as e:
