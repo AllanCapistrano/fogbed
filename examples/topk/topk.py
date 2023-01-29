@@ -11,6 +11,7 @@ from fogbed.experiment.local import FogbedExperiment
 from fogbed.node.container import Container
 from fogbed.resources.flavors import Resources
 from fogbed.resources.models import EdgeResourceModel, FogResourceModel
+from mqtt import Mqtt
 
 setLogLevel('info')
 
@@ -196,6 +197,19 @@ try:
 
     init_device(device_1, gateway_fog.ip, gateway_fog_url)
     init_device(device_2, gateway_edge.ip, gateway_edge_url)
+
+    client_mqtt: Mqtt = Mqtt(
+        username="karaf", 
+        password="karaf",
+    )
+
+    client_mqtt.subscribe(topic="TOP_K_HEALTH_FOG_RES/#")
+    client_mqtt.loop_forever()
+
+    client_mqtt.publish(
+        topic="GET topk", 
+        message='{"id": "requestId","k": 3,"functionHealth": [{"sensor": "Thermometer","weight": 2},{"sensor": "HumiditySensor","weight": 2},{"sensor": "PulseOxymeter","weight": 2},{"sensor": "WindDirectionSensor","weight": 2}]}'
+    )
 except Exception as e:
     print(e)
 
