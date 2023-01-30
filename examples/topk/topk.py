@@ -222,7 +222,8 @@ try:
 
     init_device(device_1, gateway_fog_ip, gateway_fog_url)
     init_device(device_2, gateway_edge_ip, gateway_edge_url)
+
+    input("\nPress ENTER to finish...")
+    exp.stop()
 except Exception as e:
     print(e)
-
-# exp.stop()
