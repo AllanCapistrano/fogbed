@@ -174,15 +174,15 @@ def get_container_ip(container_name: str) -> str:
     return output_sanitized
 
 
-Services(max_cpu=6, max_mem=4096)
+Services(max_cpu=6, max_mem=6144)
 
 exp = FogbedExperiment()
 
 fog = exp.add_virtual_instance(
-    f'fog', FogResourceModel(max_cu=32, max_mu=1024))
+    f'fog', FogResourceModel(max_cu=32, max_mu=4096))
 
 edge = exp.add_virtual_instance(
-    f'edge', EdgeResourceModel(max_cu=3, max_mu=1024))
+    f'edge', EdgeResourceModel(max_cu=20, max_mu=2048))
 
 gateway_fog = Container(
     f'gat_fog',
@@ -205,7 +205,7 @@ device_2 = Container(f'device_2', resources=Resources.SMALL,
                      dimage='larsid/virtual-fot-device:1.0.0-fogbed')
 
 exp.add_docker(gateway_fog, fog)
-exp.add_docker(gateway_edge, fog) # TODO: Colocar na edge
+exp.add_docker(gateway_edge, edge)
 exp.add_docker(device_1, edge)
 exp.add_docker(device_2, edge)
 
