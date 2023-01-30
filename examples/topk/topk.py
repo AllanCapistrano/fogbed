@@ -3,6 +3,8 @@ import timeit
 import json
 from urllib.request import urlopen
 from typing import Optional
+from os import popen
+from re import sub
 
 from mininet.log import setLogLevel
 
@@ -11,7 +13,6 @@ from fogbed.experiment.local import FogbedExperiment
 from fogbed.node.container import Container
 from fogbed.resources.flavors import Resources
 from fogbed.resources.models import EdgeResourceModel, FogResourceModel
-from mqtt import Mqtt
 
 setLogLevel('info')
 
@@ -55,13 +56,15 @@ def __wait_url(url: str, is_device: bool, timeout: int):
     return timeit.default_timer() - start_time
 
 
-def init_gateway(gateway: Container, has_nodes: bool = False, ip_up: Optional[str] = None) -> str:
+def init_gateway(gateway: Container, ip: str, has_nodes: bool = False, ip_up: Optional[str] = None) -> str:
     """ Initializes the gateway.
 
     Parameters
     ----------
     gateway: :class:`Container`
         The gateway that will be initialized.
+    ip: :class:`str`
+        Gateway IP address.
     has_nodes: :class:`bool`
         Indicates whether the gateway will be a parent node(true) or a 
         children node(false).
@@ -86,7 +89,7 @@ def init_gateway(gateway: Container, has_nodes: bool = False, ip_up: Optional[st
         attempt += 1
 
         try:
-            gateway.cmd(f"IP={gateway.ip}") # Configurando o IP do gateway.
+            gateway.cmd(f"IP={ip}") # Configurando o IP do gateway.
 
             if(ip_up != None):
                 gateway.cmd(f"IP_UP={ip_up}") # Configurando o IP do gateway pai, caso possua.
@@ -151,6 +154,25 @@ def init_device(device: Container, gateway_ip: str, url: str) -> None:
     if (not started):
         raise Exception("URL timeout.")
 
+def get_container_ip(container_name: str) -> str:
+    """ Get the IP address of a docker container by name.
+
+    Parameters
+    ----------
+    container_name: :class:`str`
+        Container name.
+
+    Return
+    ------
+    :class:`str`
+    """
+
+    output: str = popen(f"docker exec mn.{container_name} cat /etc/hosts | grep {container_name}").readlines()[0]
+    
+    output_sanitized: str = sub(r"[^(\d|\.)]", "", output)
+
+    return output_sanitized
+
 
 Services(max_cpu=6, max_mem=4096)
 
@@ -192,25 +214,15 @@ exp.add_link(fog, edge)
 try:
     exp.start()
 
-    gateway_fog_url: str = init_gateway(gateway=gateway_fog, has_nodes=True)
-    gateway_edge_url:str = init_gateway(gateway=gateway_edge, ip_up=gateway_fog.ip)
+    gateway_fog_ip: str = get_container_ip(gateway_fog.name)
+    gateway_edge_ip: str = get_container_ip(gateway_edge.name)
 
-    init_device(device_1, gateway_fog.ip, gateway_fog_url)
-    init_device(device_2, gateway_edge.ip, gateway_edge_url)
+    gateway_fog_url: str = init_gateway(gateway=gateway_fog, ip=gateway_fog_ip, has_nodes=True)
+    gateway_edge_url:str = init_gateway(gateway=gateway_edge, ip=gateway_edge_ip, ip_up=gateway_fog_ip)
 
-    client_mqtt: Mqtt = Mqtt(
-        username="karaf", 
-        password="karaf",
-    )
-
-    client_mqtt.subscribe(topic="TOP_K_HEALTH_FOG_RES/#")
-    client_mqtt.loop_forever()
-
-    client_mqtt.publish(
-        topic="GET topk", 
-        message='{"id": "requestId","k": 3,"functionHealth": [{"sensor": "Thermometer","weight": 2},{"sensor": "HumiditySensor","weight": 2},{"sensor": "PulseOxymeter","weight": 2},{"sensor": "WindDirectionSensor","weight": 2}]}'
-    )
+    init_device(device_1, gateway_fog_ip, gateway_fog_url)
+    init_device(device_2, gateway_edge_ip, gateway_edge_url)
 except Exception as e:
     print(e)
 
-exp.stop()
+# exp.stop()
