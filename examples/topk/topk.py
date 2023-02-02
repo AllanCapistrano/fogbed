@@ -218,7 +218,7 @@ try:
     gateway_edge_ip: str = get_container_ip(gateway_edge.name)
 
     gateway_fog_url: str = init_gateway(gateway=gateway_fog, ip=gateway_fog_ip, has_nodes=True)
-    gateway_edge_url:str = init_gateway(gateway=gateway_edge, ip=gateway_edge_ip, ip_up=gateway_fog_ip)
+    gateway_edge_url: str = init_gateway(gateway=gateway_edge, ip=gateway_edge_ip, ip_up=gateway_fog_ip)
 
     init_device(device_1, gateway_fog_ip, gateway_fog_url)
     init_device(device_2, gateway_edge_ip, gateway_edge_url)
